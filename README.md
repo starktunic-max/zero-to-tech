@@ -1,158 +1,208 @@
-# zero-to-tech-4-1（模块 4.1 配套代码）
+# zero-to-tech-4-3 · React 版（模块 4.3 配套代码）
 
-> 这是 **零到全栈 · 模块 4.1：现代前端第一步——模块化** 的配套代码——
-> 网站**模块化改造之前**的起点版本。
+这是把模块 4.2 那个 vanilla 网站，用 React **重做一遍**之后的成品：两页都成了 React 组件，整个项目只剩**一个空壳 `index.html`**。
 
-跟着这一节课件一步步改下来，你会把它改造成 ES 模块化的版本——这份模块化成果，就是 4.2 那一节的出发点（下一节我们在它基础上配 Vite 工具链）。
+> 它是 4.3 的**终点答案册**，不是让你照抄的范本。正确的用法是：在你自己那个 4.2 项目（`zero-to-tech`）上，**跟着下面四拍一步步搭到这个终点**——需要某个文件，就从这个 demo 里把对应文件拷过去。
 
-## 它当前是什么样
+## 先把它跑起来看看
 
-- 两个页面：`index.html`（个人主页）、`text-lab.html`（文字实验室）
-- 顶部 hero 区（品牌 + 导航 + 大标题）、卡片、分数动画——和模块 1.2 展示过的最终成品 UI 一脉相承
-- 8 个 css 文件、3 个 js 文件，沿用模块 3.2 教过的"用 `<link>` 和 `<script src>` 引文件"写法
-- anime.js 通过**传统 `<script>` 标签**（IIFE 版本）从 CDN 拉过来，挂到 `window.anime` 全局
-- 四个 `<script>` 必须按 **anime.js → cards.js → score.js → nav.js** 的顺序加载，错一个就崩
+```bash
+npm install      # 照 package.json 把依赖装进 node_modules
+npm run dev      # 起本地服务器，浏览器开 http://localhost:5173
+```
 
-> 这套写法刚开始还能用，但项目一长大就会撞上**两件结构痛**：**顺序坑** + **全局污染**。
-> 课件里会带你亲眼撞上它们，然后一起把项目改造成 ES 模块化的版本。
+点顶部导航能在「个人主页 / 文字实验室」之间切。看明白它长什么样，再回到自己项目动手。
 
-## 怎么打开
+## 这个项目的层级
 
-直接在浏览器里双击 `index.html` 即可，无需任何工具。
+```
+index.html              ← 空壳，只提供一个挂载点 <div id="root">
+  └─ src/main.jsx        ← 入口：把 App 挂进挂载点
+       └─ src/App.jsx    ← 总管：决定显示 HomePage 还是 TextLabPage
+            ├─ components/HomePage.jsx      ┐ 两个页面，各是一个组件
+            └─ components/TextLabPage.jsx   ┘
+                 ├─ components/Nav.jsx            （两页共用）
+                 ├─ components/PageHeading.jsx    （两页共用，靠 props 换标题）
+                 ├─ components/AnimatedCardGrid.jsx（网格容器 + 卡片飞入动画）
+                 ├─ components/InputCard.jsx
+                 └─ components/ResultCard.jsx
+```
 
-## 想自己亲手撞一下"顺序坑"？
+---
 
-把 `index.html` 底部前两行 `<script>` 调换：
+## 把你的 4.2 项目改造成这样：四拍
 
+> 全程在你自己的 `zero-to-tech` 项目里改，**不要删整个项目、不要碰 `.git`**。需要的文件从本 demo 的对应路径拷过去即可。
+
+### 先装好 React（四拍都要用，只做一次）
+
+```bash
+npm install react react-dom            # 下载 React 两个核心包
+npm install -D @vitejs/plugin-react    # 下载"翻译插件"
+```
+
+在项目根目录**新建 `vite.config.js`**（4.2 时没有它），把插件挂上：
+
+```js
+import { defineConfig } from "vite";
+import react from "@vitejs/plugin-react";
+
+export default defineConfig({
+  plugins: [react()],
+});
+```
+
+> 下载只是把插件放到本地，`react()` 这一行才真正把它挂进 Vite——两步都做了，Vite 才看得懂 `.jsx`。
+
+还要把**本 demo 仓库**拉到本地——后面每一拍都从这里往你的项目里拷文件（你既然在读这份 README，多半已经拉过了，列在这里只为完整）：
+
+```bash
+git clone https://github.com/joylibo/zero-to-tech-demos.git
+cd zero-to-tech-demos/zero-to-tech-4-3
+```
+
+> 之后所有"拷入 X"都是指：从这个 demo 目录，把文件拷进你自己的 `zero-to-tech` 项目对应位置。
+
+### 第一拍：先把「结果区」一张卡做成 React
+
+1. 拷入 `src/components/ResultCard.jsx`（项目里没有 `src/components/` 目录就先新建）。
+2. 新建入口 `src/result.jsx`（**本 demo 没有这个文件，是过渡用的，自己照下面建**）：
+   ```jsx
+   import { createRoot } from "react-dom/client";
+   import ResultCard from "./components/ResultCard.jsx";
+   createRoot(document.getElementById("result-root")).render(<ResultCard />);
+   ```
+3. 改 `text-lab.html`：把「结果区」那整段 `<article class="…result-panel…card">…</article>` **整段删掉**， 换成挂载点 `<div id="result-root" class="panel-half"></div>`，如下所示
+
+改造之前：
 ```html
-<script src="js/cards.js"></script>  <!-- cards 跑的时候 anime 还没加载 -->
-<script src="https://cdn.jsdelivr.net/npm/animejs@4/lib/anime.iife.min.js"></script>
-<script src="js/score.js"></script>
-<script src="js/nav.js"></script>
+            <article class="panel panel-half lab-panel result-panel card">
+              <div class="panel-heading">
+                <p class="section-kicker">结果区</p>
+                <h3>分析结果</h3>
+              </div>
+              <div class="result-stack">
+                <div class="result-item">
+                  <span>原文</span>
+                  <p>今天的风很轻，适合把脑海里的想法慢慢写下来。</p>
+                </div>
+                <div class="result-item">
+                  <span>拼音</span>
+                  <p>jīn tiān de fēng hěn qīng …</p>
+                </div>
+                <div class="result-grid">
+                  <div class="result-badge">
+                    <span>情感分数</span>
+                    <strong data-score>0.86</strong>
+                  </div>
+                  <div class="result-badge">
+                    <span>情感判断</span>
+                    <strong>偏积极</strong>
+                  </div>
+                </div>
+              </div>
+            </article>
 ```
-
-刷新页面、F12 看控制台——一行刺眼的红字：
-
-```
-Uncaught ReferenceError: anime is not defined
-```
-
-卡片动画当场报废。这就是"靠 `<script>` 顺序维持依赖"的脆弱——课件里讲的两件结构痛之一。
-
-实验做完，记得把两行调回原顺序。
-
-## 自己动手：把它改造成模块化版本
-
-下面这五步，就是课件里带你做的那次改造。你也可以**对照着自己手动改一遍**——代码都给你了，逐个粘进去就行（不用自己写）。
-
-### 第一步：改 `cards.js`，给它模块化
-
-把 `js/cards.js` 的内容**整个替换**成：
-
-```javascript
-import { animate, stagger } from "https://cdn.jsdelivr.net/npm/animejs@4/+esm";
-
-export function initCardsAnim() {
-  animate(".card", {
-    opacity: [0, 1],
-    translateY: [24, 0],
-    delay: stagger(120),
-    duration: 700,
-    ease: "outBack",
-  });
-}
-```
-
-- 顶上 `import`：明文声明"我要用 anime.js 里的 `animate` 和 `stagger`"（注意网址末尾的 `+esm`，这是 anime.js 的 **ES 模块版本**）。
-- `export`：把这个函数对外开放，让别的文件能 import 它。
-
-### 第二步：改 `score.js`，给它也模块化（顺手升级动画）
-
-把 `js/score.js` 的内容**整个替换**成：
-
-```javascript
-import { animate, scrambleText } from "https://cdn.jsdelivr.net/npm/animejs@4/+esm";
-
-export function initScoreAnim() {
-  var btn = document.querySelector(".primary-button");
-  var scoreEl = document.querySelector("[data-score]");
-  if (!btn || !scoreEl) return;
-
-  btn.addEventListener("click", function () {
-    animate(scoreEl, {
-      innerHTML: scrambleText({ chars: "0-9" }),
-      duration: 1500,
-    });
-  });
-}
-```
-
-- 套路和第一步一样：上面 `import`、下面 `export`。
-- 顺手把原来 `setInterval` 手写的数字滚动，换成了 anime.js 的 `scrambleText` 特效（这个特效只在 ES 模块版本里才有）。
-- 注意 `scrambleText({ chars: "0-9" })` 里的 `chars: "0-9"`——它告诉 scrambleText**滚动时只用数字 0~9**。不加这个参数的话，它默认会用字母、符号一起洗，分数滚动过程中就会闪过一堆字母，不像在"算数字"。
-
-### 第三步：改 `nav.js`，给它也模块化
-
-把 `js/nav.js` 的内容**整个替换**成：
-
-```javascript
-export function initNav() {
-  var path = location.pathname.split("/").pop() || "index.html";
-  var links = document.querySelectorAll(".nav-link");
-  for (var i = 0; i < links.length; i++) {
-    var href = links[i].getAttribute("href");
-    if (href === path) links[i].classList.add("active");
-    else links[i].classList.remove("active");
-  }
-}
-```
-
-- 对比一下改造前后：**只有头尾变了**——外层的 `(function () { ... })()` 立即执行包裹，换成了 `export function initNav() { ... }`，中间逻辑一字未改。
-- 模块化只管"怎么对外暴露"，不会逼你改写内部逻辑。
-
-### 第四步：新建 `main.js`，作为整个项目的总入口
-
-在 `js/` 目录下**新建一个文件** `js/main.js`，写入：
-
-```javascript
-import { initNav } from "./nav.js";
-import { initCardsAnim } from "./cards.js";
-import { initScoreAnim } from "./score.js";
-
-initNav();
-initCardsAnim();
-initScoreAnim();
-```
-
-- 它把前三个文件 `export` 出来的函数分别 `import` 进来，再挨个调用一遍。
-- 说白了，它就是整个页面的"总开关"。
-
-### 第五步：改两个 HTML，把四行 `<script>` 收成一行
-
-打开 `index.html`，把底部那四行 `<script>`：
-
+改造之后：
 ```html
-<script src="https://cdn.jsdelivr.net/npm/animejs@4/lib/anime.iife.min.js"></script>
-<script src="js/cards.js"></script>
-<script src="js/score.js"></script>
-<script src="js/nav.js"></script>
+            <div id="result-root" class="panel-half"></div>
 ```
 
-**整个删掉，换成一行**：
+底部原来的 `js/main.js` 留着，再加一行 `<script type="module" src="/src/result.jsx"></script>`，如下所示：
 
-```html
+改造之前：
+```
 <script type="module" src="js/main.js"></script>
 ```
+改造之后：
+```
+<script type="module" src="js/main.js"></script>
+<script type="module" src="/src/result.jsx"></script>
+```
 
-`text-lab.html` 那边**也有同样的四行**，照样删掉、换成这一行。
 
-> 改完之后，**别再双击 `index.html` 打开了**——ES 模块必须通过"服务器"提供才能加载，浏览器不允许 `file://` 直接打开（会白屏 + CORS 报错）。
-> 把项目部署到模块 3.5 那台 Nginx 服务器上（push → 服务器 pull → 指向它），再用公网 IP 访问，就能看到改造后的效果了。
+4. `npm run dev`，开 `/text-lab.html`——结果卡变成 React 画的了（它会自己淡入、分数滚动归位），其余仍是 vanilla。**这就是 vanilla 与 React 共存。**
 
-改完这五步，你就拿到了 4.1 的模块化成果——也就是 4.2 那一节的出发点。
 
-## 这一节最该带走的一句话
+### 第二拍：把结果卡并进整页，文字实验室整页交给 React
 
-> 项目长大了，"全堆在一起 + 手排 `<script>` 顺序 + 全靠 window 全局"的旧组织方式撑不住了。
-> **模块化**把每个文件的依赖写进代码里、给每个文件一份独立作用域——
-> 这就是工程化迈出的第一步。
+1. 拷入这几个组件：`PageHeading.jsx`、`InputCard.jsx`、`Nav.jsx`、`AnimatedCardGrid.jsx`、`TextLabPage.jsx`（都在 `src/components/`），以及整个 `src/css/`（8 个 css）。
+2. 删掉 `src/result.jsx`，新建 `src/textlab.jsx`，**完整内容如下**（直接照抄）：
+
+   ```jsx
+   import { createRoot } from "react-dom/client";
+   import TextLabPage from "./components/TextLabPage.jsx";
+
+   import "./css/reset.css";
+   import "./css/variables.css";
+   import "./css/layout.css";
+   import "./css/hero.css";
+   import "./css/nav.css";
+   import "./css/cards.css";
+   import "./css/lab.css";
+   import "./css/responsive.css";
+
+   createRoot(document.getElementById("root")).render(
+     <div className="app-shell">
+       <div className="page-shell">
+         <main className="page-content">
+           <TextLabPage current="textlab" onNavigate={() => {}} />
+         </main>
+       </div>
+     </div>,
+   );
+   ```
+
+3. 把 `text-lab.html` 的 `<body>` 整块换成挂载点：
+   ```html
+   <body>
+     <div id="root"></div>
+     <script type="module" src="/src/textlab.jsx"></script>
+   </body>
+   ```
+   
+4. 删掉 `text-lab.html` 的 `<head>` 里的整个一段css引入内容，即删除如下8行：
+```html
+    <link rel="stylesheet" href="css/reset.css" />
+    <link rel="stylesheet" href="css/variables.css" />
+    <link rel="stylesheet" href="css/layout.css" />
+    <link rel="stylesheet" href="css/hero.css" />
+    <link rel="stylesheet" href="css/nav.css" />
+    <link rel="stylesheet" href="css/cards.css" />
+    <link rel="stylesheet" href="css/lab.css" />
+    <link rel="stylesheet" href="css/responsive.css" />
+```
+5. `npm run dev`：`/text-lab.html` 整页 React，`/index.html` 仍是 vanilla——**一个 React 页 + 一个 vanilla 页 共存**。
+
+### 第三拍：把个人主页也抽成组件，收进一个总管 App
+
+1. 拷入 `src/components/HomePage.jsx`——看它如何复用 `Nav`/`PageHeading`（两张卡故意没拆，不是拆得越细越好）。
+2. 拷入 `src/App.jsx`——它用 `useState` 装着两个 Page、决定显示哪一页（导航到这一步才真正接上）。
+3. 此刻 `App` 还没人挂，先不跑，进第四拍。
+
+### 第四拍：全新入口 main.jsx + 全新 index.html
+
+1. **删掉**：旧的 `index.html`、`text-lab.html`、`src/textlab.jsx`、旧的 `js/`、旧的 `css/`。
+2. 拷入 `src/main.jsx`（从 demo 的 `src/main.jsx` 拷过来——它把 `App` 挂进 `#root`，并 import 8 个 css；写法和 `textlab.jsx` 几乎一样，只是渲染的是 `<App />`）。
+3. **新建**一个全新的 `index.html`，放在项目根目录，**完整内容如下**（直接照抄，也可以从 demo 根目录的 `index.html` 拷过来）：
+
+   ```html
+   <!doctype html>
+   <html lang="zh-CN">
+     <head>
+       <meta charset="UTF-8" />
+       <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+       <title>Zero to Tech</title>
+     </head>
+     <body>
+       <div id="root"></div>
+       <script type="module" src="/src/main.jsx"></script>
+     </body>
+   </html>
+   ```
+
+4. `npm run dev`，开 `/`——两页都是 React，导航可切。**至此你的项目和本 demo 一模一样。**
+
+## 关于过渡文件
+
+`src/result.jsx`、`src/textlab.jsx` 是第一、二拍的**临时入口**，到第四拍会被 `src/main.jsx` 取代删除，所以**本 demo（终点状态）里不包含它们**——按上面步骤自己新建即可。
